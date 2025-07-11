@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS ve Push Test</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GPS Push Test">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="GPS Push Test">
+    <meta name="theme-color" content="#764ba2">
+    <meta name="msapplication-TileColor" content="#667eea">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23667eea'/><text x='50' y='60' text-anchor='middle' font-size='40' fill='white'>📱</text></svg>">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            color: white;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-break: break-all;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+            border-left: 4px solid #4caf50;
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+            border-left: 4px solid #f44336;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .notification-demo {
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
+            animation: slideIn 0.5s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 GPS ve Push Test</h1>
+        
+        <!-- GPS Bölümü -->
+        <div class="section">
+            <h2>🌍 GPS Testi</h2>
+            <button onclick="getLocation()" id="gpsBtn">Konumumu Al</button>
+            <div id="gpsResult" class="result" style="display:none;">
+                <strong>Konum Bilgileri:</strong><br>
+                <div id="locationData"></div>
+            </div>
+        </div>
+
+        <!-- Push Notification Bölümü -->
+        <div class="section">
+            <h2>🔔 Push Notification Testi</h2>
+            <button onclick="requestNotificationPermission()" id="permissionBtn">Bildirim İzni İste</button>
+            <button onclick="sendTestNotification()" id="notificationBtn" disabled>Test Bildirimi Gönder</button>
+            <button onclick="scheduleNotification()" id="scheduleBtn" disabled>5 Saniye Sonra Bildirim</button>
+            <div id="notificationStatus" class="status"></div>
+            
+            <!-- Demo Bildirim -->
+            <div id="demoNotification" class="notification-demo">
+                <strong>🎉 Test Bildirimi</strong><br>
+                Bu bir test bildirimidir!
+            </div>
+        </div>
+
+        <!-- PWA Bölümü -->
+        <div class="section">
+            <h2>📱 PWA Kontrolleri</h2>
+            <button onclick="installPWA()" id="installBtn" style="display:none;">📱 Ana Ekrana Ekle</button>
+            <button onclick="registerServiceWorker()" id="swBtn">🔄 Service Worker Kaydet</button>
+            <div id="pwaStatus" class="status">PWA durumu kontrol ediliyor...</div>
+        </div>
+
+        <!-- WebView Bilgi -->
+        <div class="section">
+            <h2>📱 WebView Bilgileri</h2>
+            <div id="webviewInfo" class="result">
+                <strong>Tarayıcı:</strong> <span id="userAgent"></span><br>
+                <strong>Platform:</strong> <span id="platform"></span><br>
+                <strong>Çevrimiçi:</strong> <span id="online"></span><br>
+                <strong>Bildirim Desteği:</strong> <span id="notificationSupport"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        
+        // Sayfa yüklendiğinde bilgileri göster
+        window.onload = function() {
+            document.getElementById('userAgent').textContent = navigator.userAgent.includes('wv') ? 'WebView' : 'Tarayıcı';
+            document.getElementById('platform').textContent = navigator.platform;
+            document.getElementById('online').textContent = navigator.onLine ? 'Evet' : 'Hayır';
+            document.getElementById('notificationSupport').textContent = 'Notification' in window ? 'Destekleniyor' : 'Desteklenmiyor';
+            
+            // Bildirim izni durumunu kontrol et
+            if ('Notification' in window) {
+                updateNotificationStatus();
+            }
+            
+            // PWA durumunu kontrol et
+            checkPWAStatus();
+        };
+
+        // PWA Install Event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA install prompt hazır');
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').style.display = 'block';
+            updatePWAStatus('💾 Ana ekrana eklenebilir!');
+        });
+
+        // PWA Fonksiyonları
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        updatePWAStatus('✅ PWA ana ekrana eklendi!');
+                    } else {
+                        updatePWAStatus('❌ PWA kurulumu iptal edildi');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installBtn').style.display = 'none';
+                });
+            }
+        }
+
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker kaydedildi:', registration);
+                        updatePWAStatus('✅ Service Worker aktif!');
+                        document.getElementById('swBtn').innerHTML = '✅ Service Worker Aktif';
+                        document.getElementById('swBtn').disabled = true;
+                    })
+                    .catch(function(error) {
+                        console.log('Service Worker hatası:', error);
+                        updatePWAStatus('❌ Service Worker hatası');
+                    });
+            } else {
+                updatePWAStatus('❌ Service Worker desteklenmiyor');
+            }
+        }
+
+        function checkPWAStatus() {
+            let status = '📱 PWA Durumu: ';
+            
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                status += 'Ana ekrandan açıldı';
+            } else if (window.navigator.standalone === true) {
+                status += 'iOS Safari standalone';
+            } else {
+                status += 'Tarayıcıda açık';
+            }
+            
+            updatePWAStatus(status);
+        }
+
+        function updatePWAStatus(message) {
+            document.getElementById('pwaStatus').innerHTML = message;
+        }
+
+        // GPS Fonksiyonları
+        function getLocation() {
+            const btn = document.getElementById('gpsBtn');
+            const result = document.getElementById('gpsResult');
+            const locationData = document.getElementById('locationData');
+            
+            if (!navigator.geolocation) {
+                showResult(result, 'GPS desteklenmiyor!', 'error');
+                return;
+            }
+
+            btn.innerHTML = '<span class="loading"></span>Konum alınıyor...';
+            btn.disabled = true;
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    locationData.innerHTML = `
+                        <strong>Enlem:</strong> ${lat.toFixed(6)}<br>
+                        <strong>Boylam:</strong> ${lon.toFixed(6)}<br>
+                        <strong>Doğruluk:</strong> ${accuracy} metre<br>
+                        <strong>Zaman:</strong> ${new Date(position.timestamp).toLocaleString('tr-TR')}
+                    `;
+                    
+                    showResult(result, '', 'success');
+                    btn.innerHTML = 'Konumu Yenile';
+                    btn.disabled = false;
+
+                    // Android WebView için log
+                    if (window.Android && window.Android.showToast) {
+                        window.Android.showToast('Konum başarıyla alındı!');
+                    }
+                },
+                function(error) {
+                    let errorMsg = 'Konum alınamadı: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += 'İzin verilmedi';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += 'Konum mevcut değil';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += 'Zaman aşımı';
+                            break;
+                        default:
+                            errorMsg += 'Bilinmeyen hata';
+                            break;
+                    }
+                    
+                    locationData.innerHTML = errorMsg;
+                    showResult(result, '', 'error');
+                    btn.innerHTML = 'Tekrar Dene';
+                    btn.disabled = false;
+                },
+                options
+            );
+        }
+
+        // Notification Fonksiyonları
+        function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                alert('Bu tarayıcı bildirimleri desteklemiyor!');
+                return;
+            }
+
+            Notification.requestPermission().then(function(permission) {
+                updateNotificationStatus();
+                if (permission === 'granted') {
+                    document.getElementById('notificationBtn').disabled = false;
+                    document.getElementById('scheduleBtn').disabled = false;
+                }
+            });
+        }
+
+        function updateNotificationStatus() {
+            const status = document.getElementById('notificationStatus');
+            const permission = Notification.permission;
+            
+            switch(permission) {
+                case 'granted':
+                    status.innerHTML = '✅ Bildirim izni verildi';
+                    status.className = 'status success';
+                    document.getElementById('notificationBtn').disabled = false;
+                    document.getElementById('scheduleBtn').disabled = false;
+                    break;
+                case 'denied':
+                    status.innerHTML = '❌ Bildirim izni reddedildi';
+                    status.className = 'status error';
+                    break;
+                default:
+                    status.innerHTML = '⏳ Bildirim izni bekleniyor';
+                    status.className = 'status';
+            }
+        }
+
+        function sendTestNotification() {
+            if (Notification.permission === 'granted') {
+                const notification = new Notification('🎉 Test Bildirimi', {
+                    body: 'WebView\'dan gönderilen test bildirimi!',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📱</text></svg>',
+                    tag: 'test-notification'
+                });
+
+                notification.onclick = function() {
+                    showDemoNotification();
+                    notification.close();
+                };
+
+                // WebView'da görünmeyebilir, o yüzden demo göster
+                showDemoNotification();
+            } else {
+                alert('Önce bildirim izni vermelisiniz!');
+            }
+        }
+
+        function scheduleNotification() {
+            if (Notification.permission !== 'granted') {
+                alert('Önce bildirim izni vermelisiniz!');
+                return;
+            }
+
+            const btn = document.getElementById('scheduleBtn');
+            btn.innerHTML = '<span class="loading"></span>5 saniye bekle...';
+            btn.disabled = true;
+
+            setTimeout(function() {
+                const notification = new Notification('⏰ Zamanlanmış Bildirim', {
+                    body: '5 saniye önce planlanmış bildirim!',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏰</text></svg>'
+                });
+
+                showDemoNotification('⏰ Zamanlanmış Bildirim', '5 saniye önce planlanmış bildirim!');
+                
+                btn.innerHTML = 'Tekrar Zamanla';
+                btn.disabled = false;
+            }, 5000);
+        }
+
+        function showDemoNotification(title = '🎉 Test Bildirimi', body = 'Bu bir test bildirimidir!') {
+            const demo = document.getElementById('demoNotification');
+            demo.innerHTML = `<strong>${title}</strong><br>${body}`;
+            demo.style.display = 'block';
+            
+            setTimeout(function() {
+                demo.style.display = 'none';
+            }, 4000);
+        }
+
+        function showResult(element, message, type) {
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            if (message) {
+                element.innerHTML = message;
+            }
+        }
+
+        // WebView'dan JavaScript çağrıları için (Android)
+        window.onGPSSuccess = function(lat, lon) {
+            const locationData = document.getElementById('locationData');
+            locationData.innerHTML = `
+                <strong>Enlem:</strong> ${lat}<br>
+                <strong>Boylam:</strong> ${lon}<br>
+                <strong>Kaynak:</strong> Native Android
+            `;
+            showResult(document.getElementById('gpsResult'), '', 'success');
+        };
+    </script>
+</body>
+</html>
